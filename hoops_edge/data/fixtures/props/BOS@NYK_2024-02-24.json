@@ -1,0 +1,10 @@
+{
+  "game_id": "BOS@NYK_2024-02-24",
+  "book": "DK",
+  "props": [
+    {"player": "Jalen Brunson", "market": "points", "line": 26.5, "over": -115, "under": -105},
+    {"player": "Jayson Tatum", "market": "rebounds", "line": 8.5, "over": -102, "under": -118},
+    {"player": "Jrue Holiday", "market": "threes", "line": 2.5, "over": 120, "under": -145},
+    {"player": "Jaylen Brown", "market": "pra", "line": 34.5, "over": -110, "under": -110}
+  ]
+}

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hoops-edge"
+version = "0.1.0"
+description = "Terminal app that ranks NBA bets by profitability"
+authors = [{name = "hoops-edge"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/willbo114-dot/hoops-edge"
