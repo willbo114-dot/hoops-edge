@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence
 
@@ -82,7 +82,7 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("scan", nargs="?", help=argparse.SUPPRESS)
     parser.add_argument("--date", dest="date", help="Target date (YYYY-MM-DD)")
     parser.add_argument("--conf", choices=["east", "west", "all"], help="Conference filter")
-    parser.add_argument("--books", help="Comma separated list of books", default=",")
+    parser.add_argument("--books", help="Comma separated list of books")
     parser.add_argument("--replay", help="Replay fixture e.g. odds=path.json")
     return parser.parse_args(argv)
 
@@ -90,14 +90,24 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def _parse_date(value: str | None) -> datetime:
     if value:
         return datetime.fromisoformat(value)
-    today = datetime.utcnow()
-    return today
+    return datetime.utcnow()
 
 
 def _parse_books(value: str | None) -> List[str]:
-    if not value or value == ",":
+    if not value:
         return DEFAULT_BOOKS
     return [book.strip().upper() for book in value.split(",") if book.strip()]
+
+
+def _format_tipoff(tip: datetime) -> datetime:
+    if tip.hour == 0 and tip.minute == 0:
+        return tip.replace(hour=19, minute=30)
+    return tip
+
+
+def _format_game_listing(game: GameOdds) -> str:
+    tip = _format_tipoff(game.date)
+    return f"{tip:%I:%M %p} • {game.matchup}"
 
 
 def _select_games(games: List[GameOdds]) -> List[GameOdds]:
@@ -105,7 +115,7 @@ def _select_games(games: List[GameOdds]) -> List[GameOdds]:
         return []
     if not _is_interactive():
         return games
-    log.bullet_list("Available games:", [f"{g.matchup}" for g in games])
+    log.bullet_list("Available games:", [_format_game_listing(g) for g in games])
     selection = _prompt("Select one or multiple (e.g., 1,3) or 'all': ", "all")
     if not selection or selection.lower() == "all":
         return games
@@ -208,14 +218,25 @@ def _audit_record_to_row(record: AuditRecord) -> List[str]:
 
 def scan(argv: Sequence[str] | None = None) -> None:
     ns = _parse_args(argv)
-    target_date = _parse_date(ns.date)
+
+    date_input = ns.date or _prompt(
+        "Date (YYYY-MM-DD) [Enter = today]: ",
+        datetime.utcnow().strftime("%Y-%m-%d"),
+    )
+    target_date = _parse_date(date_input)
+
     conference = ns.conf or (
         _prompt("Conference [1] East [2] West [3] All: ", "all")
         .replace("1", "east")
         .replace("2", "west")
         .replace("3", "all")
     )
-    books = _parse_books(ns.books)
+
+    books_value = ns.books or _prompt(
+        "Books (comma separated, default DK): ",
+        ",".join(DEFAULT_BOOKS),
+    )
+    books = _parse_books(books_value)
     if not set(books).issubset(set(SUPPORTED_BOOKS)):
         raise SystemExit("Unsupported book specified")
 
@@ -264,7 +285,8 @@ def scan(argv: Sequence[str] | None = None) -> None:
     matchup_lookup: Dict[str, str] = {game.game_id: game.home for game in selected_games}
 
     for game in selected_games:
-        tip = f"{target_date:%m-%d} 07:30 PM"
+        tip_dt = _format_tipoff(game.date)
+        tip = f"{tip_dt:%m-%d %I:%M %p}"
         matchup = game.matchup
         book_name = books[0]
         book_markets = game.books.get(book_name, {})
@@ -419,7 +441,7 @@ def scan(argv: Sequence[str] | None = None) -> None:
         )
         record = _build_bet_record(
             matchup=next((g.matchup for g in selected_games if g.game_id == prop.game_id), prop.game_id),
-            tip=f"{target_date:%m-%d} 07:30 PM",
+            tip=f"{tip_dt:%m-%d %I:%M %p}",
             market=prop.market.capitalize(),
             selection=f"{prop.player} • Over",
             book=prop.book,
